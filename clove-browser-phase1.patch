@@ -1,0 +1,62 @@
+diff --git a/app/src/main/java/com/clove/browser/BrowserViewModel.kt b/app/src/main/java/com/clove/browser/BrowserViewModel.kt
+index d0a37f35e13bd7d2c791a97f2b9e00141db69b94..0000000000000000000000000000000000000000 100644
+--- a/app/src/main/java/com/clove/browser/BrowserViewModel.kt
++++ b/app/src/main/java/com/clove/browser/BrowserViewModel.kt
+@@ -111,8 +111,8 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
+
+     // ---------------- history ----------------
+
+-    fun recordVisit(url: String, title: String) {
+-        if (isPrivateMode || url.isBlank() || url.startsWith("about:")) return
++    fun recordVisit(tab: TabState, url: String, title: String) {
++        if (tab.isPrivate || url.isBlank() || url.startsWith("about:")) return
+         // De-dupe consecutive identical urls.
+         if (history.firstOrNull()?.url == url) return
+         history.add(0, HistoryEntry(url, title, System.currentTimeMillis()))
+diff --git a/app/src/main/java/com/clove/browser/web/WebViewFactory.kt b/app/src/main/java/com/clove/browser/web/WebViewFactory.kt
+index 146c61e958a1501f352d7cf1eef6b02c421e3a2e..0000000000000000000000000000000000000000 100644
+--- a/app/src/main/java/com/clove/browser/web/WebViewFactory.kt
++++ b/app/src/main/java/com/clove/browser/web/WebViewFactory.kt
+@@ -39,6 +39,11 @@ fun createBrowserWebView(
+         settings.apply {
+             javaScriptEnabled = true
+             domStorageEnabled = !tab.isPrivate
+             databaseEnabled = !tab.isPrivate
++            // This browser does not need local-file access for normal web browsing.
++            allowFileAccess = false
++            allowContentAccess = false
++            safeBrowsingEnabled = true
++            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+             cacheMode = if (tab.isPrivate) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
+             loadWithOverviewMode = true
+             useWideViewPort = true
+@@ -48,7 +53,6 @@ fun createBrowserWebView(
+             setSupportZoom(true)
+             mediaPlaybackRequiresUserGesture = true
+             javaScriptCanOpenWindowsAutomatically = false
+             setSupportMultipleWindows(false)
+-            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+             // A modern mobile UA so sites serve their phone layout.
+             userAgentString = userAgentString.replace("; wv", "")
+         }
+@@ -74,7 +78,7 @@ fun createBrowserWebView(
+                 tab.canGoBack = view.canGoBack()
+                 tab.canGoForward = view.canGoForward()
+-                viewModel.recordVisit(url ?: tab.url, view.title ?: tab.title)
++                viewModel.recordVisit(tab, url ?: tab.url, view.title ?: tab.title)
+             }
+
+             override fun shouldOverrideUrlLoading(
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 9e19d4b6dc72bb7387316d7c20168a20bf3b9813..0000000000000000000000000000000000000000 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -12,7 +12,7 @@
+         android:icon="@mipmap/ic_launcher"
+         android:label="@string/app_name"
+         android:roundIcon="@mipmap/ic_launcher_round"
+         android:supportsRtl="true"
+         android:theme="@style/Theme.Clove"
+-        android:usesCleartextTraffic="true"
++        android:usesCleartextTraffic="false"
+         tools:targetApi="31">
